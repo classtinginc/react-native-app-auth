@@ -45,8 +45,12 @@ import net.openid.appauth.RegistrationResponse;
 import net.openid.appauth.ResponseTypeValues;
 import net.openid.appauth.TokenResponse;
 import net.openid.appauth.TokenRequest;
+import net.openid.appauth.browser.BrowserAllowList;
+import net.openid.appauth.browser.VersionRange;
+import net.openid.appauth.browser.VersionedBrowserMatcher;
 import net.openid.appauth.connectivity.ConnectionBuilder;
 import net.openid.appauth.connectivity.DefaultConnectionBuilder;
+import net.openid.appauth.browser.Browsers.Chrome;
 
 
 import net.openid.appauth.EndSessionRequest;
@@ -54,6 +58,7 @@ import net.openid.appauth.EndSessionResponse;
 
 
 import java.util.ArrayList;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -64,8 +69,11 @@ import java.util.concurrent.CountDownLatch;
 public class RNAppAuthModule extends ReactContextBaseJavaModule implements ActivityEventListener {
 
     public static final String CUSTOM_TAB_PACKAGE_NAME = "com.android.chrome";
+    private static final String CHROME_PACKAGE_BETA = "com.chrome.beta";
+    private static final String CHROME_PACKAGE_DEV = "com.chrome.dev";
 
-    private static class RequestCode {
+
+  private static class RequestCode {
       static final int AUTHORIZATION = 1;
       static final int END_SESSION = 2;
     }
@@ -268,32 +276,38 @@ public class RNAppAuthModule extends ReactContextBaseJavaModule implements Activ
             }
         } else {
             final Uri issuerUri = Uri.parse(issuer);
-            AuthorizationServiceConfiguration.fetchFromUrl(
-                    buildConfigurationUriFromIssuer(issuerUri),
-                    new AuthorizationServiceConfiguration.RetrieveConfigurationCallback() {
-                        public void onFetchConfigurationCompleted(
-                                @Nullable AuthorizationServiceConfiguration fetchedConfiguration,
-                                @Nullable AuthorizationException ex) {
-                            if (ex != null) {
-                                promise.reject("service_configuration_fetch_error", ex.getLocalizedMessage(), ex);
-                                return;
-                            }
+            try {
+              AuthorizationServiceConfiguration.fetchFromUrl(
+                buildConfigurationUriFromIssuer(issuerUri),
+                new AuthorizationServiceConfiguration.RetrieveConfigurationCallback() {
+                  public void onFetchConfigurationCompleted(
+                    @Nullable AuthorizationServiceConfiguration fetchedConfiguration,
+                    @Nullable AuthorizationException ex) {
+                    if (ex != null) {
+                      promise.reject("service_configuration_fetch_error", ex.getLocalizedMessage(), ex);
+                      return;
+                    }
 
-                            setServiceConfiguration(issuer, fetchedConfiguration);
+                    setServiceConfiguration(issuer, fetchedConfiguration);
+                    authorizeWithConfiguration(
+                      fetchedConfiguration,
+                      appAuthConfiguration,
+                      clientId,
+                      scopes,
+                      redirectUrl,
+                      usePKCE,
+                      additionalParametersMap
+                    );
+                  }
+                },
+                builder
+              );
+             } catch (ActivityNotFoundException e) {
+              promise.reject("browser_not_found", e.getMessage());
+            } catch (Exception e) {
+              promise.reject("authentication_failed", e.getMessage());
+            }
 
-                            authorizeWithConfiguration(
-                                    fetchedConfiguration,
-                                    appAuthConfiguration,
-                                    clientId,
-                                    scopes,
-                                    redirectUrl,
-                                    usePKCE,
-                                    additionalParametersMap
-                            );
-                        }
-                    },
-                    builder
-            );
         }
 
 
@@ -854,6 +868,15 @@ public class RNAppAuthModule extends ReactContextBaseJavaModule implements Activ
         return new AppAuthConfiguration
                 .Builder()
                 .setConnectionBuilder(connectionBuilder)
+                .setBrowserMatcher(new BrowserAllowList(
+                  VersionedBrowserMatcher.CHROME_CUSTOM_TAB,
+                  VersionedBrowserMatcher.FIREFOX_CUSTOM_TAB,
+                  VersionedBrowserMatcher.SAMSUNG_CUSTOM_TAB,
+                  new VersionedBrowserMatcher(CHROME_PACKAGE_BETA, Chrome.SIGNATURE_SET, true, VersionRange.atLeast(Chrome.MINIMUM_VERSION_FOR_CUSTOM_TAB)),
+                  new VersionedBrowserMatcher(CHROME_PACKAGE_DEV, Chrome.SIGNATURE_SET, true, VersionRange.atLeast(Chrome.MINIMUM_VERSION_FOR_CUSTOM_TAB)),
+                  VersionedBrowserMatcher.CHROME_BROWSER,
+                  VersionedBrowserMatcher.SAMSUNG_BROWSER
+                  ))
                 .build();
     }
 
