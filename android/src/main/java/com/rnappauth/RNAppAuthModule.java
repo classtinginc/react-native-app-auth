@@ -871,11 +871,9 @@ public class RNAppAuthModule extends ReactContextBaseJavaModule implements Activ
                 .setBrowserMatcher(new BrowserAllowList(
                   VersionedBrowserMatcher.CHROME_CUSTOM_TAB,
                   VersionedBrowserMatcher.FIREFOX_CUSTOM_TAB,
-                  VersionedBrowserMatcher.SAMSUNG_CUSTOM_TAB,
                   new VersionedBrowserMatcher(CHROME_PACKAGE_BETA, Chrome.SIGNATURE_SET, true, VersionRange.atLeast(Chrome.MINIMUM_VERSION_FOR_CUSTOM_TAB)),
                   new VersionedBrowserMatcher(CHROME_PACKAGE_DEV, Chrome.SIGNATURE_SET, true, VersionRange.atLeast(Chrome.MINIMUM_VERSION_FOR_CUSTOM_TAB)),
                   VersionedBrowserMatcher.CHROME_BROWSER,
-                  VersionedBrowserMatcher.SAMSUNG_BROWSER
                   ))
                 .build();
     }
