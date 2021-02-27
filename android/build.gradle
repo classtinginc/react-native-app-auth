@@ -58,7 +58,7 @@ repositories {
 dependencies {
     //noinspection GradleDynamicVersion
     implementation 'com.facebook.react:react-native:+'  // From node_modules
-    implementation fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
+    implementation 'net.openid:appauth:0.8.0'
     def browserVersion = safeExtGet('androidXBrowser', '1.2.0');
     implementation "androidx.browser:browser:$browserVersion"
 }
