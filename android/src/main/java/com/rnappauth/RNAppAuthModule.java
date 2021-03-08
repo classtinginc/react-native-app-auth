@@ -74,8 +74,8 @@ public class RNAppAuthModule extends ReactContextBaseJavaModule implements Activ
 
 
   private static class RequestCode {
-      static final int AUTHORIZATION = 1;
-      static final int END_SESSION = 2;
+      static final int AUTHORIZATION = 30010;
+      static final int END_SESSION = 30020;
     }
 
     private final ReactApplicationContext reactContext;
