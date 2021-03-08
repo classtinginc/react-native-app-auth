@@ -41,11 +41,13 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma clang diagnostic ignored "-Wpartial-availability"
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 130000
 @interface OIDExternalUserAgentIOSEphemeral ()<SFSafariViewControllerDelegate, ASWebAuthenticationPresentationContextProviding,
-UIAdaptivePresentationControllerDelegate
->
+UIAdaptivePresentationControllerDelegate, UIGestureRecognizerDelegate>
+@property (strong, nonatomic) UITapGestureRecognizer *tapOutsideRecognizer;
+
 @end
 #else
-@interface OIDExternalUserAgentIOSEphemeral ()<SFSafariViewControllerDelegate, UIAdaptivePresentationControllerDelegate>
+@interface OIDExternalUserAgentIOSEphemeral ()<SFSafariViewControllerDelegate, UIAdaptivePresentationControllerDelegate, UIGestureRecognizerDelegate>
+@property (strong, nonatomic) UITapGestureRecognizer *tapOutsideRecognizer;
 @end
 #endif
 #pragma clang diagnostic pop
@@ -80,6 +82,13 @@ UIAdaptivePresentationControllerDelegate
 #endif // __IPHONE_OS_VERSION_MAX_ALLOWED >= 130000
 
     _presentingViewController = presentingViewController;
+  if (!self.tapOutsideRecognizer) {
+         self.tapOutsideRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTapBehind:)];
+         self.tapOutsideRecognizer.numberOfTapsRequired = 1;
+         self.tapOutsideRecognizer.cancelsTouchesInView = NO;
+         self.tapOutsideRecognizer.delegate = self;
+         [_presentingViewController.view.window addGestureRecognizer:self.tapOutsideRecognizer];
+     }
   }
   return self;
 }
@@ -225,6 +234,15 @@ UIAdaptivePresentationControllerDelegate
 }
 
 - (void)cleanUp {
+    
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnonnull"
+    if (self.tapOutsideRecognizer) {
+         [_presentingViewController.view.window removeGestureRecognizer:self.tapOutsideRecognizer];
+         self.tapOutsideRecognizer = nil;
+     }
+#pragma clang diagnostic pop
+
   // The weak references to |_safariVC| and |_session| are set to nil to avoid accidentally using
   // them while not in an authorization flow.
   _safariVC = nil;
@@ -232,6 +250,7 @@ UIAdaptivePresentationControllerDelegate
   _webAuthenticationVC = nil;
   _session = nil;
   _externalUserAgentFlowInProgress = NO;
+
 }
 
 #pragma mark - SFSafariViewControllerDelegate
@@ -251,6 +270,39 @@ UIAdaptivePresentationControllerDelegate
                                     underlyingError:nil
                                         description:@"No external user agent flow in progress."];
   [session failExternalUserAgentFlowWithError:error];
+}
+
+
+#pragma mark - Actions
+
+- (IBAction)close:(id)sender
+{
+    id<OIDExternalUserAgentSession> session = _session;
+    NSError *error =
+        [OIDErrorUtilities errorWithCode:OIDErrorCodeUserCanceledAuthorizationFlow
+                             underlyingError:nil
+                             description:@"User cancelled."];
+    [session failExternalUserAgentFlowWithError:error];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnonnull"
+    [self dismissExternalUserAgentAnimated:YES completion:nil];
+#pragma clang diagnostic pop
+}
+
+- (void)handleTapBehind:(UITapGestureRecognizer *)sender
+{
+    if (sender.state == UIGestureRecognizerStateEnded)
+    {
+        [_presentingViewController.view.window removeGestureRecognizer:sender];
+        [self close:sender];
+
+    }
+}
+
+#pragma mark - Gesture Recognizer
+// because of iOS8
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer{
+    return YES;
 }
 
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 130000
